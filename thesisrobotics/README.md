@@ -1,2 +1,0 @@
-# thesisrobotics
-Repository for Thesis
