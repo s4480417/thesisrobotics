@@ -44,7 +44,7 @@ git clone https://github.com/s4480417/thesisrobotics.git
 cd ~/catkin_ws
 ```
 - Run catkin_make
-```
+```console
 catkin_make
 ```
 ## Using the Stack
