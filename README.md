@@ -26,6 +26,7 @@ The framework will be designed to be robust and be used with other arms (e.g. th
 - Install Ubuntu 18.04 (Bionic Beaver) (Required)
 - Install [ROS Melodic](http://wiki.ros.org/melodic) (Required)
 - Download the [Kinova ROS Stack](https://github.com/Kinovarobotics/kinova-ros) (for using Kinova Gen2/Jaco2 Robots)
+- Build and install [OpenCV](https://docs.opencv.org/master/d7/d9f/tutorial_linux_install.html) from source
 ## 1.2 Installation
 - Create and enter a catkin workspace (e.g. ~/catkin_ws)
 ```console
