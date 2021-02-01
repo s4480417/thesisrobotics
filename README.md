@@ -39,6 +39,7 @@ The framework will be designed to be robust and be used with other arms (e.g. th
 - sudo apt install python-rosdep
 - sudo rosdep init
 - rosdep update
+- sudo apt-get install ros-melodic-moveit
 ## 1.2 Installation
 - Create and enter a catkin workspace (e.g. ~/catkin_ws)
 ```console
