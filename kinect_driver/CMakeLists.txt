@@ -15,14 +15,13 @@ catkin_package(
 )
 
 include_directories(
-    /home/valencimm/freenect2/include
+	$ENV{HOME}/freenect2/include
     include
     ${catkin_INCLUDE_DIRS}
     ${OpenCV_INCLUDE_DIRS} 
 )
 
-find_file(FREENECT_LIB libfreenect2.so /home/valencimm/freenect2/lib)
-
+find_file(FREENECT_LIB libfreenect2.so $ENV{HOME}/freenect2/lib)
 add_executable( kinect_main src/kinect_main.cpp )
 
 target_link_libraries( kinect_main ${FREENECT_LIB} ${catkin_LIBRARIES} ${OpenCV_LIBS} )
