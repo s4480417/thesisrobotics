@@ -1,6 +1,6 @@
 <?xml version="1.0"?>
 <package>
-  <name>kinova_miguel</name>
+  <name>jaco2_driver</name>
   <version>0.0.1</version>
   <description>The kinova_miguel package</description>
 

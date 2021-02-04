@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 2.8.3)
-project(kinova_miguel)
+project(jaco2_driver)
 
 ## Find catkin macros and libraries
 ## if COMPONENTS list like find_package(catkin REQUIRED COMPONENTS xyz)
@@ -56,8 +56,9 @@ install(FILES
 ## Mark executable scripts (Python etc.) for installation
 ## in contrast to setup.py, you can choose the destination
 install(PROGRAMS
-  nodes/kinova_miguel/fingers_action_client.py
-  nodes/kinova_miguel/joints_action_client.py
-  nodes/kinova_miguel/pose_action_client.py
+  nodes/jaco2_driver/fingers_action_client.py
+  nodes/jaco2_driver/joints_action_client.py
+  nodes/jaco2_driver/pose_action_client.py
+  nodes/jaco2_driver/test.py
   DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}
 )

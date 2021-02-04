@@ -21,7 +21,7 @@
   </group>
 
   <group if="$(arg use_urdf)">
-    <param name="robot_description" command="$(find xacro)/xacro.py '$(find kinova_miguel)/urdf/j2n6s300.urdf.xacro'" />
+    <param name="robot_description" command="$(find xacro)/xacro.py '$(find jaco2_driver)/urdf/j2n6s300.urdf.xacro'" />
     <node name="$(arg arm)_state_publisher"
            pkg="robot_state_publisher"
           type="robot_state_publisher">

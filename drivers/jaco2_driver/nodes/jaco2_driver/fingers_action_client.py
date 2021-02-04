@@ -1,7 +1,7 @@
 #! /usr/bin/env python
 """A helper program to test gripper goals for the JACO and MICO arms."""
 
-import roslib; roslib.load_manifest('kinova_miguel')
+import roslib; roslib.load_manifest('jaco2_driver')
 import rospy
 
 import sys
@@ -94,10 +94,8 @@ def unitParser(finger_value_):
     finger_turn_ = [finger_value_/100.0 * finger_maxTurn] * 3
     return finger_turn_
 
-
 if __name__ == '__main__':
-
-
+    
     args = argumentParser(None)
 
     kinova_robotTypeParser()

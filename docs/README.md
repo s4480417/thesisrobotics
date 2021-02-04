@@ -8,13 +8,14 @@
 
 ## Robotic Arms
 ### Description
-This context encompasses basic robot arm functionality, for both the left and right arm.
+This context includes basic robot arm functionality, for both the left and right arm.
 This includes joint angle control, cartesian position control, output
 ### Nodes
 `rob/<name>/<l/r>_<node>`
 ### Messages
 `rob_msgs/<MsgName>`
 ## Computer Vision
+This context includes computer vision functionality, from the kinect and from openpose.
 ### Nodes
 `cpv/<kin/opp>/<node>`
 ### Messages
