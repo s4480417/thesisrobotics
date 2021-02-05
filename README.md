@@ -67,6 +67,7 @@ Download:
 In a terminal, go to the folder you downloaded these to.
  
 Run these commands:
+
 **Runtime Library**
 ```console
     sudo dpkg -i libcudnn7_7.6.5.32-1+cuda10.1_amd64.deb
