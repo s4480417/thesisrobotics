@@ -5,21 +5,24 @@
 #include <libfreenect2/logger.h>
 #include <opencv2/opencv.hpp>
 #include <opencv2/imgproc/imgproc.hpp>
+#include <sensor_msgs/image_encodings.h>
+#include <image_transport/image_transport.h>
+#include <cv_bridge/cv_bridge.h>
 #include <iostream>
 
 #include <ros/ros.h>
 
 using namespace cv;
 
-//[](float& e) { e = 1.0 - (e - 500.0) / 1500.0; }
-
 void func(float& e) {
-     e = 1.0 - (e - 500.0) / 1500.0;
+     e = (e - 500.0) / 1500.0;
+     if (e <= 1e-3) {
+         e = 1.0;
+     }
+     e = 255.0 * (1.0 - e);
 }
 
 int main(int argc, char** argv) {
-    namedWindow("Color Filled", WINDOW_NORMAL);
-    namedWindow("Depth Filled", WINDOW_NORMAL);
 
     ros::init(argc, argv, "kinect_main");
     libfreenect2::Freenect2 freenect2;
@@ -52,6 +55,14 @@ int main(int argc, char** argv) {
     libfreenect2::Registration* registration = new libfreenect2::Registration(dev->getIrCameraParams(), dev->getColorCameraParams());
     libfreenect2::Frame undistorted(512, 424, 4);
     libfreenect2::Frame registered(512, 424, 4);    
+
+    ros::NodeHandle nh_registered;
+    ros::NodeHandle nh_undistorted;
+    image_transport::ImageTransport it_registered(nh_registered);
+    image_transport::ImageTransport it_undistorted(nh_undistorted);
+    image_transport::Publisher pub_registered = it_registered.advertise("kin/img_registered", 1);
+    image_transport::Publisher pub_undistorted = it_undistorted.advertise("kin/img_undistorted", 1);
+
     for (;;) {
         if (!listener.waitForNewFrame(frames, 10*10000)) {
             std::cout << "Timeout!" << std::endl;
@@ -67,8 +78,8 @@ int main(int argc, char** argv) {
         Mat img_depth = Mat(Size(depth->width, depth->height), CV_32FC1, depth->data);
         
         Mat img_registered = Mat(Size(registered.width, registered.height), CV_8UC4, registered.data);
-        cvtColor(img_registered, img_registered, CV_RGBA2RGB);
         Mat img_undistorted = Mat(Size(undistorted.width, undistorted.height), CV_32FC1, undistorted.data);
+        cvtColor(img_registered, img_registered, CV_RGBA2RGB);
         
         Mat img_mask;
         
@@ -76,29 +87,36 @@ int main(int argc, char** argv) {
         cvtColor(img_mask, img_mask, CV_RGBA2GRAY);
 
         std::for_each(img_undistorted.begin<float>(), img_undistorted.end<float>(), func);
-        img_undistorted *= 255.0;
         img_undistorted.convertTo(img_undistorted, CV_8UC1);
-
-
-        Mat img_color_filled;
-        Mat img_depth_filled;
-        inpaint(img_registered, img_mask, img_color_filled, 1.0, INPAINT_NS);
-        inpaint(img_undistorted, img_mask, img_depth_filled, 1.0, INPAINT_TELEA);
 
         Rect roi;
         roi.x = 0;
         roi.y = 50;
         roi.width = img_depth.size().width;
         roi.height = img_depth.size().height - 100;
-
-        imshow("Color Filled", img_color_filled(roi));
-        imshow("Depth Filled", img_depth_filled(roi));
         
-//        std::cout << img_depth_filled.size() << img_color_filled.size() << std::endl;
+        img_registered = img_registered(roi);
+        img_undistorted = img_undistorted(roi);
+        medianBlur(img_undistorted, img_undistorted, 5);
+        Mat mask;
+        threshold(img_undistorted, mask, 0, 255, THRESH_OTSU | THRESH_BINARY);
+        Mat foreground_color;
+        Mat foreground_depth;
+        img_registered.copyTo(foreground_color, mask);
+        img_undistorted.copyTo(foreground_depth, mask);
+        sensor_msgs::ImagePtr msg_registered = cv_bridge::CvImage(std_msgs::Header(), "bgr8", foreground_color).toImageMsg();
+        sensor_msgs::ImagePtr msg_undistorted = cv_bridge::CvImage(std_msgs::Header(), "mono8", foreground_depth).toImageMsg();
+
+        pub_registered.publish(msg_registered);
+        pub_undistorted.publish(msg_undistorted);
+        ros::spinOnce();
         
         listener.release(frames);
         
-        waitKey(16);
+        if (waitKey(1) == 'c') {
+            imwrite("test.bmp", img_registered);
+            std::cout << "screenshot!" << std::endl;
+        }
     }
     dev->stop();
     dev->close();

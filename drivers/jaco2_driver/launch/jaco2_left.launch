@@ -5,27 +5,27 @@
   <arg name="feedback_publish_rate" default="0.1"/>
   <arg name="arm" default="not_set"/>
 
-  <node name="$(arg arm)_driver" pkg="kinova_driver" type="kinova_arm_driver" output="screen" cwd="node" args="j2n6s300">
-    <param name="serial_number" value="$(arg kinova_robotSerial)"/>
-    <param name="robot_name" value="$(arg arm)"/>   
+  <node name="left_driver" pkg="kinova_driver" type="kinova_arm_driver" output="screen" cwd="node" args="j2n6s300">
+    <param name="serial_number" value="PJ00000001030703130"/>
+    <param name="robot_name" value="left"/>   
     <param name="robot_type" value="j2n6s300"/>   
     <param name="use_jaco_v1_fingers" value="false"/>   
     <param name="status_interval_seconds" value="$(arg feedback_publish_rate)"/>
   </node>
 
   <group unless="$(arg use_urdf)">
-    <node name="$(arg arm)_tf_updater" pkg="kinova_driver" type="kinova_tf_updater" output="screen" cwd="node" args="j2n6s300">
-      <remap from="/$(arg arm)_tf_updater/in/joint_angles" to="/$(arg arm)_driver/out/joint_angles"/>
-      <param name="$(arg arm)_base_frame" value="root"/>
+    <node name="left_tf_updater" pkg="kinova_driver" type="kinova_tf_updater" output="screen" cwd="node" args="j2n6s300">
+      <remap from="/left_tf_updater/in/joint_angles" to="/left_driver/out/joint_angles"/>
+      <param name="left_base_frame" value="root"/>
     </node>
   </group>
 
   <group if="$(arg use_urdf)">
     <param name="robot_description" command="$(find xacro)/xacro.py '$(find jaco2_driver)/urdf/j2n6s300.urdf.xacro'" />
-    <node name="$(arg arm)_state_publisher"
+    <node name="left_state_publisher"
            pkg="robot_state_publisher"
           type="robot_state_publisher">
-      <remap from="joint_states" to="/$(arg arm)_driver/out/joint_state"/>
+      <remap from="joint_states" to="/left_driver/out/joint_state"/>
     </node>
   </group>
 
