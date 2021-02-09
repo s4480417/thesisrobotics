@@ -5,6 +5,7 @@
 * `mps` - Motion Planning System
 * `usr` - User
 * `utl` - Utility
+* `viz` - Visualization
 
 ## Robotic Arms
 ### Description
