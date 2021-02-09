@@ -127,15 +127,31 @@ void messageCallback(const openpose_ros_msgs::OpenPoseHumanList::ConstPtr& msg) 
             int c = (int)position.at(0);
             int r = (int)position.at(1);
             std::cout << to_string(bp) << std::endl;
-            std::cout << "Pixel: <" << c << ", " << r << ">" << std::endl;
             float x = 0;
             float y = 0;
             float z = 0;
-            registration->getPointXYZ(&undistorted, r, c, x, y, z);
-            std::cout << "Position: (" << x << ", " << y << ", " << z << ">" << std::endl;
-
+            int count = 0;
+            for (int c_off = -2; c_off <= 2; c_off++) {
+                for (int r_off = -2; r_off <= 2; r_off++) {
+                    float x_raw = 0;
+                    float y_raw = 0;
+                    float z_raw = 0;
+                    registration->getPointXYZ(&undistorted, r + r_off, c + r_off, x_raw, y_raw, z_raw);
+                    if (!isnan(x_raw) && !isnan(y_raw) && !isnan(z_raw)) {
+                        x += x_raw;
+                        y += y_raw;
+                        z += z_raw;
+                        count++;
+                    }
+                }
+            }
+            if (count != 0) {
+                x /= (float)count;
+                y /= (float)count;
+                z /= (float)count;
+            }
+            std::cout << "<" << std::to_string(x) << ", " << std::to_string(y) << ", " << std::to_string(z) << ">" << std::endl;
         }
-        std::cout << std::endl;
     }
 }
 
@@ -193,7 +209,7 @@ int main(int argc, char** argv) {
 
     ros::Subscriber sub_pose = nh_pose.subscribe("usr/keypoints", 100, messageCallback);
     ros::Publisher pub_cloud;
-    pub_cloud = nh_cloud.advertise<sensor_msgs::PointCloud2>("/pcl/points", 1);
+    pub_cloud = nh_cloud.advertise<sensor_msgs::PointCloud2>("/viz/points", 1);
 
     while (ros::ok()) {
         if (!listener.waitForNewFrame(frames, 10*10000)) {
@@ -204,9 +220,6 @@ int main(int argc, char** argv) {
         libfreenect2::Frame *ir = frames[libfreenect2::Frame::Ir];
         libfreenect2::Frame *depth = frames[libfreenect2::Frame::Depth];
         registration->apply(color, depth, &undistorted, &registered);
-
-
-
 
         Mat img_color = Mat(Size(color->width, color->height), CV_8UC4, color->data);
         Mat img_ir = Mat(Size(ir->width, ir->height), CV_8UC1, ir->data);
@@ -254,15 +267,21 @@ int main(int argc, char** argv) {
         pub_registered_raw.publish(msg_registered_raw);
         pub_undistorted_raw.publish(msg_undistorted_raw);
 
-        pcl::PointCloud<pcl::PointXYZ> cloud;
+        pcl::PointCloud<pcl::PointXYZRGB> cloud;
         for (int i = 0; i < depth->height; i++) {
             for (int j = 0; j < depth->width; j++ ) {
-                pcl::PointXYZ point;
-                registration->getPointXYZ(&undistorted, i, j, point.y, point.z, point.x);
-                
-                point.x *= 2;
-                point.y *= 2;
-                point.z *= 2;
+                pcl::PointXYZRGB point;
+                float rgb;
+                registration->getPointXYZRGB(&undistorted, &registered, i, j, point.x, point.z, point.y, rgb);
+                point.z *= -1;
+                point.x *= 2.5;
+                point.y *= 2.5;
+                point.z *= 2.5;
+                point.z += 0.25;
+                const uint8_t *p = reinterpret_cast<uint8_t*>(&rgb);
+                point.b = p[0];
+                point.g = p[1];
+                point.r = p[2];
                 if (mask.at<uchar>(i, j) != 0) {
                     cloud.points.push_back(point);
                 }
