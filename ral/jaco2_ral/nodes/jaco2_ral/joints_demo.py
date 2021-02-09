@@ -1,5 +1,18 @@
 #! /usr/bin/env python
-from joints_action_client import * 
+
+
+import roslib; roslib.load_manifest('jaco2_ral')
+import rospy
+
+import rospkg
+
+# get an instance of RosPack with the default search paths
+rospack = rospkg.RosPack()
+
+# list all packages, equivalent to rospack list
+print(rospack.list())
+
+from jaco2_driver.joints_action_client import *
 
 import time
 

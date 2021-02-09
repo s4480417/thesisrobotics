@@ -1,0 +1,24 @@
+<?xml version="1.0"?>
+<package>
+  <name>usr_msgs</name>
+  <version>0.0.1</version>
+  <description >
+  This contains the messages, actions and services for the user perspective (keypoints, etc.)
+  </description>
+
+  <author email="valencimm@gmail.com">Miguel Marco Valencia</author>
+  <maintainer email="valencimm@gmail.com">Miguel Marco Valencia</maintainer>
+  
+  <license>BSD</license>
+
+  <url>https://github.com/s4480417/thesisrobotics</url>
+
+  <buildtool_depend>catkin</buildtool_depend>
+
+  <build_depend>message_generation</build_depend>
+
+  <run_depend>message_runtime</run_depend>
+
+  <export>
+  </export>
+</package>

@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 2.8.3)
-project(kinect_driver)
+project(kin_ral)
 add_compile_options(-std=c++11)
 
 find_package(catkin REQUIRED COMPONENTS
@@ -24,7 +24,8 @@ include_directories(
     ${OpenCV_INCLUDE_DIRS} 
 )
 
-find_file(FREENECT_LIB libfreenect2.so $ENV{HOME}/freenect2/lib)
-add_executable( kinect_main src/kinect_main.cpp )
 
-target_link_libraries( kinect_main ${FREENECT_LIB} ${catkin_LIBRARIES} ${OpenCV_LIBS} )
+find_file(FREENECT_LIB libfreenect2.so $ENV{HOME}/freenect2/lib)
+#add_executable( kinect_main src/kinect_main.cpp )
+
+#target_link_libraries( kinect_main ${FREENECT_LIB} ${catkin_LIBRARIES} ${OpenCV_LIBS} )
