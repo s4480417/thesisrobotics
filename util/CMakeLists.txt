@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 2.8.3)
-project(kin_driver)
+project(util)
 add_compile_options(-std=c++11)
 
 find_package(catkin REQUIRED COMPONENTS
@@ -12,6 +12,8 @@ find_package(catkin REQUIRED COMPONENTS
 )
 
 find_package( OpenCV REQUIRED )
+
+catkin_python_setup()
 
 catkin_package(
   INCLUDE_DIRS include
@@ -26,7 +28,7 @@ include_directories(
     ${OpenCV_INCLUDE_DIRS} 
 )
 
-add_library( ${PROJECT_NAME} src/kin_driver.cpp )
+add_library( ${PROJECT_NAME} src/util.cpp )
 
 target_link_libraries( ${PROJECT_NAME} ${FREENECT_LIB} ${catkin_LIBRARIES} ${OpenCV_LIBS} )
 
@@ -40,4 +42,9 @@ install(
 install(
   DIRECTORY include/${PROJECT_NAME}/
   DESTINATION ${CATKIN_PACKAGE_INCLUDE_DESTINATION}
+)
+
+install(PROGRAMS
+  nodes/util/util.py
+  DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}
 )

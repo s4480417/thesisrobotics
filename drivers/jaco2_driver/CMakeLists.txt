@@ -59,6 +59,5 @@ install(PROGRAMS
   nodes/jaco2_driver/fingers_action_client.py
   nodes/jaco2_driver/joints_action_client.py
   nodes/jaco2_driver/pose_action_client.py
-  nodes/jaco2_driver/test.py
   DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}
 )

@@ -17,10 +17,6 @@ import math
 import argparse
 
 
-# Left Home := [-0.171618387103 -0.343606084585 0.861170470715 | 16.1 -25.6 33.7]
-# Right Home := [270 180 90 | 180 90 0]
-
-
 """ Global variable """
 arm_joint_number = 0
 finger_number = 0
@@ -29,15 +25,16 @@ finger_maxDist = 18.9/2/1000  # max distance for one finger
 finger_maxTurn = 6800  # max thread rotation for one finger
 currentCartesianCommand = [0.212322831154, -0.257197618484, 0.509646713734, 1.63771402836, 1.11316478252, 0.134094119072] # default home in unit mq
 
+arm = 'right'
 
 def cartesian_pose_client(position, orientation):
     """Send a cartesian goal to the action server."""
-    action_address = '/left_driver/pose_action/tool_pose'
+    action_address = '/' + arm + '_driver/pose_action/tool_pose'
     client = actionlib.SimpleActionClient(action_address, kinova_msgs.msg.ArmPoseAction)
     client.wait_for_server()
 
     goal = kinova_msgs.msg.ArmPoseGoal()
-    goal.pose.header = std_msgs.msg.Header(frame_id=(prefix + 'link_base'))
+    goal.pose.header = std_msgs.msg.Header(frame_id=(arm + '_link_base'))
     goal.pose.pose.position = geometry_msgs.msg.Point(
         x=position[0], y=position[1], z=position[2])
     goal.pose.pose.orientation = geometry_msgs.msg.Quaternion(
@@ -101,7 +98,7 @@ def EulerXYZ2Quaternion(EulerXYZ_):
 
 def getcurrentCartesianCommand(prefix_):
     # wait to get current position
-    topic_address = '/left_driver/out/cartesian_command'
+    topic_address = '/' + arm + '_driver/out/cartesian_command'
     rospy.Subscriber(topic_address, kinova_msgs.msg.KinovaPose, setcurrentCartesianCommand)
     rospy.wait_for_message(topic_address, kinova_msgs.msg.KinovaPose)
     print 'position listener obtained message for Cartesian pose. '
@@ -201,7 +198,7 @@ def unitParser(unit_, pose_value_, relative_):
         orientation_q = EulerXYZ2Quaternion(orientation_rad)
 
     else:
-        raise Exception("Cartesian value have to be in unit: mq, mdeg or mrad")
+        raise Exception("Cartesian value has to be in units: mq, mdeg or mrad")
 
     pose_mq_ = position_ + orientation_q
     pose_mdeg_ = position_ + orientation_deg
@@ -233,7 +230,7 @@ if __name__ == '__main__':
     args = argumentParser(None)
 
     kinova_robotTypeParser(args.kinova_robotType)
-    rospy.init_node('left_pose_action_client')
+    rospy.init_node('pose_action_client')
 
     if args.unit == 'mq':
         if len(args.pose_value) != 7:
@@ -253,7 +250,6 @@ if __name__ == '__main__':
     try:
 
         poses = [float(n) for n in pose_mq]
-
         result = cartesian_pose_client(poses[:3], poses[3:])
 
         print('Cartesian pose sent!')

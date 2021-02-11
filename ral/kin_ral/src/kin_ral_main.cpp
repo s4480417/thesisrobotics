@@ -7,7 +7,6 @@
 #include <openpose_ros_msgs/OpenPoseHuman.h>
 #include <openpose_ros_msgs/OpenPoseHumanList.h>
 #include <openpose_ros_msgs/PointWithProb.h>
-#include <vector>
 
 #include <std_msgs/Float64.h>
 
@@ -19,6 +18,9 @@
 
 // Include PointCloud2 message
 #include <sensor_msgs/PointCloud2.h>
+#include <tf/tf.h>
+
+#include <util/util.hpp>
 
 #define NUM_KEYPOINTS 19
 
@@ -51,13 +53,13 @@ enum BodyPart {
     BKG         = 18
 };
 
-
 class UsrBody {
 private:
-    std::vector<double> positions[NUM_KEYPOINTS];
+    tf::Vector3 positions[NUM_KEYPOINTS];
+    bool set_flags[NUM_KEYPOINTS];
 public:
-    void setPosition(BodyPart bp, std::vector<double> position);
-    std::vector<double> getPosition(BodyPart bp);
+    void setPosition(BodyPart bp, tf::Vector3 position, double weight);
+    tf::Vector3 getPosition(BodyPart bp);
 };
 
 UsrBody body;
@@ -65,12 +67,21 @@ libfreenect2::Frame undistorted(DEPTH_WIDTH, DEPTH_HEIGHT, 4);
 libfreenect2::Frame registered(DEPTH_WIDTH, DEPTH_HEIGHT, 4);
 libfreenect2::Registration* registration;
 
-std::vector<double> UsrBody::getPosition(BodyPart bp) {
+tf::Vector3 UsrBody::getPosition(BodyPart bp) {
     return positions[bp];
 }
 
-void UsrBody::setPosition(BodyPart bp, std::vector<double> position) {
-    positions[bp] = position;
+void UsrBody::setPosition(BodyPart bp, tf::Vector3 position, double weight) {
+    
+    if (!set_flags[bp]) {
+        set_flags[bp] = true;
+        positions[bp] = position;
+    } else if (positions[bp].distance(position) < 0.5) {
+        positions[bp] = position * weight + positions[bp] * (1.0 - weight);
+        return;
+    } else {
+        set_flags[bp] = false;
+    }
 }
 
 std::string to_string(BodyPart bp) {
@@ -125,17 +136,17 @@ void messageCallback(const openpose_ros_msgs::OpenPoseHumanList::ConstPtr& msg) 
         for (int i = 0; i < msg->num_humans; i++) {
             for (int j = 0; j < NUM_KEYPOINTS; j++) {
                 openpose_ros_msgs::PointWithProb point = msg->human_list[i].body_key_points_with_prob[j];
-                std::vector<double> position = {point.x, point.y};
+                tf::Vector3 position(point.x, point.y, 0.0);
                 BodyPart bp = static_cast<BodyPart>(j);
-                body.setPosition(bp, position);
+                body.setPosition(bp, position, 0.5);
             }
         }
         pcl::PointCloud<pcl::PointXYZ> pose_viz;
-        for (int i = 0; i < NUM_KEYPOINTS; i++) {
+        for (int i = 2; i < 14; i++) {
             BodyPart bp = static_cast<BodyPart>(i);
-            std::vector<double> position = body.getPosition(bp);
-            int c = (int)position.at(0);
-            int r = (int)position.at(1);
+            tf::Vector3 position = body.getPosition(bp);
+            int c = (int)position.x();
+            int r = (int)position.y();
             pcl::PointXYZ point;
             point.x = 0.0;
             point.y = 0.0;
@@ -293,10 +304,12 @@ int main(int argc, char** argv) {
         Mat foreground_depth;
         img_registered.copyTo(foreground_color, mask);
         img_undistorted.copyTo(foreground_depth, mask);
+
         sensor_msgs::ImagePtr msg_registered = cv_bridge::CvImage(std_msgs::Header(), "bgr8", foreground_color).toImageMsg();
         sensor_msgs::ImagePtr msg_undistorted = cv_bridge::CvImage(std_msgs::Header(), "mono8", foreground_depth).toImageMsg();
         sensor_msgs::ImagePtr msg_registered_raw = cv_bridge::CvImage(std_msgs::Header(), "bgr8", img_registered_raw).toImageMsg();
         sensor_msgs::ImagePtr msg_undistorted_raw = cv_bridge::CvImage(std_msgs::Header(), "mono8", img_undistorted_raw).toImageMsg();
+
         pub_registered.publish(msg_registered);
         pub_undistorted.publish(msg_undistorted);
         pub_registered_raw.publish(msg_registered_raw);
@@ -309,8 +322,20 @@ int main(int argc, char** argv) {
 
                 pcl::PointXYZRGB point;
                 float rgb;
-                registration->getPointXYZRGB(&undistorted, &registered, i, j, point.y, point.z, point.x, rgb);
-                point.z *= -1;
+                
+                float x_raw = 0;
+                float y_raw = 0;
+                float z_raw = 0;
+                registration->getPointXYZRGB(&undistorted, &registered, i, j, x_raw, y_raw, z_raw, rgb);
+                
+                tf::Vector3 v_raw(x_raw, y_raw, z_raw);
+                tf::Vector3 v_new;
+                kinect_to_origin(v_raw, &v_new);
+
+                point.x = v_new.x();
+                point.y = v_new.y();
+                point.z = v_new.z();
+
                 const uint8_t *p = reinterpret_cast<uint8_t*>(&rgb);
                 point.b = p[0];
                 point.g = p[1];
@@ -323,7 +348,7 @@ int main(int argc, char** argv) {
 
         sensor_msgs::PointCloud2 cloud_msg;
         pcl::toROSMsg(cloud, cloud_msg);
-        cloud_msg.header.frame_id = "kinect";
+        cloud_msg.header.frame_id = "root";
         cloud_msg.header.stamp = ros::Time::now();
         pub_cloud.publish(cloud_msg);
         ros::spinOnce();

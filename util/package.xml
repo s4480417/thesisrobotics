@@ -1,8 +1,8 @@
 <?xml version="1.0"?>
 <package>
-  <name>kin_ral</name>
+  <name>util</name>
   <version>0.0.1</version>
-  <description>Kinect Abstraction Layer Package for ROS</description>
+  <description>Utility Package for ROS</description>
 
   <!-- One maintainer tag required, multiple allowed, one person per tag -->
   <!-- Example:  -->
@@ -21,26 +21,10 @@
   <build_depend>roscpp</build_depend>
   <build_depend>rospy</build_depend>
   <build_depend>std_msgs</build_depend>
-  <build_depend>usr_msgs</build_depend>
-  <build_depend>kin_driver</build_depend>
-  <build_depend>util</build_depend>
 
-  <build_depend>pcl_conversions</build_depend>
-  <build_depend>pcl_ros</build_depend>
-  <build_depend>libpcl-all-dev</build_depend>
-  <build_depend>tf</build_depend>
-  
   <run_depend>roscpp</run_depend>
   <run_depend>rospy</run_depend>
   <run_depend>std_msgs</run_depend>
-  <run_depend>usr_msgs</run_depend>
-  <run_depend>kin_driver</run_depend>
-  <run_depend>util</run_depend>
-
-  <run_depend>pcl_conversions</run_depend>
-  <run_depend>pcl_ros</run_depend>
-  <run_depend>libpcl-all</run_depend>
-  <run_depend>tf</run_depend>
 
 
   <!-- The export tag contains other, unspecified, tags -->

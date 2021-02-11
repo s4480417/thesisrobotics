@@ -10,9 +10,10 @@ find_package(catkin REQUIRED COMPONENTS
   cv_bridge
   usr_msgs
   kin_driver
+  util
   pcl_conversions
   pcl_ros
-#  openpose_ros_msgs
+  tf
 )
 
 find_package( OpenCV REQUIRED )
@@ -28,9 +29,10 @@ include_directories(
     ${catkin_INCLUDE_DIRS}
     ${OpenCV_INCLUDE_DIRS} 
     ${kin_driver_INCLUDE_DIRS}
+    ${util_INCLUDE_DIRS}
 )
 
 find_file(FREENECT_LIB libfreenect2.so $ENV{HOME}/freenect2/lib)
 add_executable( kin_ral_main src/kin_ral_main.cpp )
 
-target_link_libraries( kin_ral_main ${FREENECT_LIB} ${catkin_LIBRARIES} ${OpenCV_LIBS} ${kin_driver_LIBS} )
+target_link_libraries( kin_ral_main ${FREENECT_LIB} ${catkin_LIBRARIES} ${OpenCV_LIBS} ${kin_driver_LIBS} ${util_LIBS} )

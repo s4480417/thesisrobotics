@@ -12,6 +12,7 @@ find_package(catkin REQUIRED COMPONENTS
   roscpp
   rospy
   jaco2_driver
+  util
 )
 
 ## Uncomment this if the package has a setup.py. This macro ensures
@@ -57,5 +58,6 @@ install(FILES
 ## in contrast to setup.py, you can choose the destination
 install(PROGRAMS
   nodes/jaco2_ral/joints_demo.py
+  nodes/jaco2_ral/pose_demo.py
   DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}
 )
