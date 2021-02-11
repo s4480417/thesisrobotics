@@ -9,6 +9,8 @@
 #include <openpose_ros_msgs/PointWithProb.h>
 #include <vector>
 
+#include <std_msgs/Float64.h>
+
 // Include pcl
 #include <pcl_conversions/pcl_conversions.h>
 #include <pcl/point_cloud.h>
@@ -19,6 +21,13 @@
 #include <sensor_msgs/PointCloud2.h>
 
 #define NUM_KEYPOINTS 19
+
+#define COLOR_WIDTH     1920
+#define COLOR_HEIGHT    1080
+#define IR_WIDTH        512
+#define IR_HEIGHT       424
+#define DEPTH_WIDTH     512
+#define DEPTH_HEIGHT    424
 
 enum BodyPart {
     NOSE        = 0,
@@ -52,8 +61,8 @@ public:
 };
 
 UsrBody body;
-libfreenect2::Frame undistorted(512, 424, 4);
-libfreenect2::Frame registered(512, 424, 4);
+libfreenect2::Frame undistorted(DEPTH_WIDTH, DEPTH_HEIGHT, 4);
+libfreenect2::Frame registered(DEPTH_WIDTH, DEPTH_HEIGHT, 4);
 libfreenect2::Registration* registration;
 
 std::vector<double> UsrBody::getPosition(BodyPart bp) {
@@ -109,6 +118,7 @@ std::string to_string(BodyPart bp) {
     }
 }
 
+ros::Publisher pub_pose_viz;
 
 void messageCallback(const openpose_ros_msgs::OpenPoseHumanList::ConstPtr& msg) {
     if (msg->num_humans > 0) {
@@ -120,38 +130,44 @@ void messageCallback(const openpose_ros_msgs::OpenPoseHumanList::ConstPtr& msg) 
                 body.setPosition(bp, position);
             }
         }
-
+        pcl::PointCloud<pcl::PointXYZ> pose_viz;
         for (int i = 0; i < NUM_KEYPOINTS; i++) {
             BodyPart bp = static_cast<BodyPart>(i);
             std::vector<double> position = body.getPosition(bp);
             int c = (int)position.at(0);
             int r = (int)position.at(1);
-            std::cout << to_string(bp) << std::endl;
-            float x = 0;
-            float y = 0;
-            float z = 0;
+            pcl::PointXYZ point;
+            point.x = 0.0;
+            point.y = 0.0;
+            point.z = 0.0;
             int count = 0;
             for (int c_off = -2; c_off <= 2; c_off++) {
                 for (int r_off = -2; r_off <= 2; r_off++) {
                     float x_raw = 0;
                     float y_raw = 0;
                     float z_raw = 0;
-                    registration->getPointXYZ(&undistorted, r + r_off, c + r_off, x_raw, y_raw, z_raw);
+                    registration->getPointXYZ(&undistorted, r + r_off, c + r_off, y_raw, z_raw, x_raw);
                     if (!isnan(x_raw) && !isnan(y_raw) && !isnan(z_raw)) {
-                        x += x_raw;
-                        y += y_raw;
-                        z += z_raw;
+                        z_raw *= -1;
+                        point.x += x_raw;
+                        point.y += y_raw;
+                        point.z += z_raw;
                         count++;
                     }
                 }
             }
             if (count != 0) {
-                x /= (float)count;
-                y /= (float)count;
-                z /= (float)count;
+                point.x /= (float)count;
+                point.y /= (float)count;
+                point.z /= (float)count;
             }
-            std::cout << "<" << std::to_string(x) << ", " << std::to_string(y) << ", " << std::to_string(z) << ">" << std::endl;
+            pose_viz.points.push_back(point);
         }
+        sensor_msgs::PointCloud2 pose_viz_msg;
+        pcl::toROSMsg(pose_viz, pose_viz_msg);
+        pose_viz_msg.header.frame_id = "kinect";
+        pose_viz_msg.header.stamp = ros::Time::now();
+        pub_pose_viz.publish(pose_viz_msg);
     }
 }
 
@@ -182,12 +198,26 @@ int main(int argc, char** argv) {
     libfreenect2::FrameMap frames;
     dev->setColorFrameListener(&listener);
     dev->setIrAndDepthFrameListener(&listener);
+
+    libfreenect2::Freenect2Device::Config config;
+    config.MinDepth = 0.0;
+    config.MaxDepth = 8.0;
+    dev->setConfiguration(config);
     if (!dev->start()) {
         return -1;
     }
+    
     std::cout << "Device serial: " << dev->getSerialNumber() << std::endl;
     std::cout << "Device firmware: " << dev->getFirmwareVersion() << std::endl;
-    registration = new libfreenect2::Registration(dev->getIrCameraParams(), dev->getColorCameraParams());
+
+    libfreenect2::Freenect2Device::ColorCameraParams color_params = dev->getColorCameraParams();
+    libfreenect2::Freenect2Device::IrCameraParams ir_params = dev->getIrCameraParams();
+
+    dev->setColorCameraParams(color_params);
+    dev->setIrCameraParams(ir_params);
+
+    registration = new libfreenect2::Registration(ir_params, color_params);
+
     
     ros::NodeHandle nh_registered;
     ros::NodeHandle nh_undistorted;
@@ -195,38 +225,52 @@ int main(int argc, char** argv) {
     ros::NodeHandle nh_undistorted_raw;
 
     ros::NodeHandle nh_pose;
-
     ros::NodeHandle nh_cloud;
+    ros::NodeHandle nh_pose_viz;
 
     image_transport::ImageTransport it_registered(nh_registered);
     image_transport::ImageTransport it_undistorted(nh_undistorted);
     image_transport::ImageTransport it_registered_raw(nh_registered_raw);
     image_transport::ImageTransport it_undistorted_raw(nh_undistorted_raw);
+
+
     image_transport::Publisher pub_registered = it_registered.advertise("kin/img_registered", 1);
     image_transport::Publisher pub_undistorted = it_undistorted.advertise("kin/img_undistorted", 1);
     image_transport::Publisher pub_registered_raw = it_registered_raw.advertise("kin/img_registered_raw", 1);
     image_transport::Publisher pub_undistorted_raw = it_undistorted_raw.advertise("kin/img_undistorted_raw", 1);
 
     ros::Subscriber sub_pose = nh_pose.subscribe("usr/keypoints", 100, messageCallback);
-    ros::Publisher pub_cloud;
-    pub_cloud = nh_cloud.advertise<sensor_msgs::PointCloud2>("/viz/points", 1);
+    ros::Publisher pub_cloud = nh_cloud.advertise<sensor_msgs::PointCloud2>("viz/points", 1);
+    pub_pose_viz = nh_pose_viz.advertise<sensor_msgs::PointCloud2>("viz/pose", 1);
 
     while (ros::ok()) {
         if (!listener.waitForNewFrame(frames, 10*10000)) {
             std::cout << "Timeout!" << std::endl;
             return -1;
         }
+
         libfreenect2::Frame *color = frames[libfreenect2::Frame::Color];
         libfreenect2::Frame *ir = frames[libfreenect2::Frame::Ir];
         libfreenect2::Frame *depth = frames[libfreenect2::Frame::Depth];
-        registration->apply(color, depth, &undistorted, &registered);
-
-        Mat img_color = Mat(Size(color->width, color->height), CV_8UC4, color->data);
-        Mat img_ir = Mat(Size(ir->width, ir->height), CV_8UC1, ir->data);
-        Mat img_depth = Mat(Size(depth->width, depth->height), CV_32FC1, depth->data);
         
-        Mat img_registered = Mat(Size(registered.width, registered.height), CV_8UC4, registered.data);
-        Mat img_undistorted = Mat(Size(undistorted.width, undistorted.height), CV_32FC1, undistorted.data);
+        registration->apply(color, depth, &undistorted, &registered);
+        registration->undistortDepth(depth, &undistorted);
+
+        Mat img_color = Mat(Size(color->width, color->height), CV_8UC4);
+        Mat img_ir = Mat(Size(ir->width, ir->height), CV_8UC1);
+        Mat img_depth = Mat(Size(depth->width, depth->height), CV_32FC1);
+        
+        memcpy(img_color.data, color->data, color->width * color->height * sizeof(unsigned char) * 4);
+        memcpy(img_ir.data, ir->data, ir->width * ir->height * sizeof(unsigned char));
+        memcpy(img_depth.data, depth->data, depth->width * depth->height * sizeof(float));
+        
+        Mat img_registered = Mat(Size(registered.width, registered.height), CV_8UC4);
+        Mat img_undistorted = Mat(Size(undistorted.width, undistorted.height), CV_32FC1);
+
+        
+        memcpy(img_registered.data, registered.data, registered.width * registered.height * sizeof(unsigned char) * 4);
+        memcpy(img_undistorted.data, undistorted.data, undistorted.width * undistorted.height * sizeof(float));
+
         cvtColor(img_registered, img_registered, CV_RGBA2RGB);
         
         Mat img_mask;
@@ -236,21 +280,12 @@ int main(int argc, char** argv) {
 
         std::for_each(img_undistorted.begin<float>(), img_undistorted.end<float>(), func);
         img_undistorted.convertTo(img_undistorted, CV_8UC1);
-
-        Rect roi;
-        roi.x = 0;
-        roi.y = 50;
-        roi.width = img_depth.size().width;
-        roi.height = img_depth.size().height - 100;
         
         Mat img_registered_raw;
         Mat img_undistorted_raw;
         img_registered.copyTo(img_registered_raw);
         img_undistorted.copyTo(img_undistorted_raw);
 
-
-        img_registered = img_registered(roi);
-        img_undistorted = img_undistorted(roi);
         medianBlur(img_undistorted, img_undistorted, 5);
         Mat mask;
         threshold(img_undistorted, mask, 0, 255, THRESH_OTSU | THRESH_BINARY);
@@ -270,14 +305,12 @@ int main(int argc, char** argv) {
         pcl::PointCloud<pcl::PointXYZRGB> cloud;
         for (int i = 0; i < depth->height; i++) {
             for (int j = 0; j < depth->width; j++ ) {
+                float d = ((float*)(undistorted.data))[i * depth->width + j];
+
                 pcl::PointXYZRGB point;
                 float rgb;
-                registration->getPointXYZRGB(&undistorted, &registered, i, j, point.x, point.z, point.y, rgb);
+                registration->getPointXYZRGB(&undistorted, &registered, i, j, point.y, point.z, point.x, rgb);
                 point.z *= -1;
-                point.x *= 2.5;
-                point.y *= 2.5;
-                point.z *= 2.5;
-                point.z += 0.25;
                 const uint8_t *p = reinterpret_cast<uint8_t*>(&rgb);
                 point.b = p[0];
                 point.g = p[1];
@@ -290,7 +323,7 @@ int main(int argc, char** argv) {
 
         sensor_msgs::PointCloud2 cloud_msg;
         pcl::toROSMsg(cloud, cloud_msg);
-        cloud_msg.header.frame_id = "root";
+        cloud_msg.header.frame_id = "kinect";
         cloud_msg.header.stamp = ros::Time::now();
         pub_cloud.publish(cloud_msg);
         ros::spinOnce();
