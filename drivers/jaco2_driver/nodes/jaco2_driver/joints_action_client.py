@@ -13,41 +13,61 @@ import kinova_msgs.msg
 
 import argparse
 
+from abc import abstractmethod
+
 # Left Home := [90, 180, 270, 180, 270, 0, 0]
 # Right Home := [270, 180, 90, 180, 90, 0, 0]
 
 class RobotArm:
+
+    @abstractmethod
+    def set_angles(self, joint_degree, relative=False):
+        pass
+    
+    @abstractmethod
+    def get_angles(self):
+        pass
+
+class Jaco2Arm(RobotArm):
     def __init__(self, arm, prefix="j2n6s300_",):
+        """ Initialize Jaco2 6-DOF 3-Finger Robot """
         self.arm = arm
         self.prefix = prefix
         self.currentJointCommand = [0] * 7
         self.getcurrentJointCommand()
 
+    @public
     def set_angles(self, joint_degree, relative=False):
+        """ Set angles of robot """
         if relative:
             joint_degree_absolute = [joint_degree[i] + self.currentJointCommand[i] for i in range(0, len(joint_degree))]
         else:
             joint_degree_absolute = joint_degree
         result = self.joint_angle_client(joint_degree_absolute, self.arm)
         return result
+    
+    @public
+    def get_angles(self):
+        return self.__get_currentJointCommand()
 
-    def getcurrentJointCommand(self):
-        # wait to get current position
+
+    def __get_currentJointCommand(self):
+        """ Get the current joint command (internal) """
         topic_address = '/' + self.arm + '_driver/out/joint_command'
-        rospy.Subscriber(topic_address, kinova_msgs.msg.JointAngles, self.setcurrentJointCommand)
+        rospy.Subscriber(topic_address, kinova_msgs.msg.JointAngles, self.__set_currentJointCommand)
         rospy.wait_for_message(topic_address, kinova_msgs.msg.JointAngles)
         print 'position listener obtained message for joint position. '
 
 
-    def setcurrentJointCommand(self, feedback):
-
+    def __set_currentJointCommand(self, feedback):
+        """ Set the current joint command (internal) """
         currentJointCommand_str_list = str(feedback).split("\n")
         for index in range(0, len(currentJointCommand_str_list)):
             temp_str=currentJointCommand_str_list[index].split(": ")
             self.currentJointCommand[index] = float(temp_str[1])
 
 
-    def joint_angle_client(self, angle_set, arm):
+    def __joint_angle_client(self, angle_set, arm):
         """Send a joint angle goal to the action server."""
         action_address = '/' + arm + '_driver/joints_action/joint_angles'
         client = actionlib.SimpleActionClient(action_address,
