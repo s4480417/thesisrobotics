@@ -118,56 +118,7 @@ std::string to_string(BodyPart bp) {
     }
 }
 
-/*
-
-double fx = 365.456;
-double fy = 365.456;
-double cx = 254.878;
-double cy = 205.395;
-double k1 = 0.0905474;
-double k2 = -0.26819;
-double k3 = 0.0950862;
-double p1 = 0.0;
-double p2 = 0.0;
-
-void fx_callback(const std_msgs::Float64::ConstPtr& msg) {
-    fx = msg->data;
-}
-
-void fy_callback(const std_msgs::Float64::ConstPtr& msg) {
-    fy = msg->data;
-}
-
-void cx_callback(const std_msgs::Float64::ConstPtr& msg) {
-    cx = msg->data;
-}
-
-void cy_callback(const std_msgs::Float64::ConstPtr& msg) {
-    cy = msg->data;
-}
-
-void k1_callback(const std_msgs::Float64::ConstPtr& msg) {
-    k1 = msg->data;
-}
-
-void k2_callback(const std_msgs::Float64::ConstPtr& msg) {
-    k2 = msg->data;
-}
-
-void k3_callback(const std_msgs::Float64::ConstPtr& msg) {
-    k3 = msg->data;
-}
-
-void p1_callback(const std_msgs::Float64::ConstPtr& msg) {
-    p1 = msg->data;
-}
-
-void p2_callback(const std_msgs::Float64::ConstPtr& msg) {
-    p2 = msg->data;
-}
-
-*/
-
+ros::Publisher pub_pose_viz;
 
 void messageCallback(const openpose_ros_msgs::OpenPoseHumanList::ConstPtr& msg) {
     if (msg->num_humans > 0) {
@@ -179,39 +130,44 @@ void messageCallback(const openpose_ros_msgs::OpenPoseHumanList::ConstPtr& msg) 
                 body.setPosition(bp, position);
             }
         }
-
+        pcl::PointCloud<pcl::PointXYZ> pose_viz;
         for (int i = 0; i < NUM_KEYPOINTS; i++) {
             BodyPart bp = static_cast<BodyPart>(i);
             std::vector<double> position = body.getPosition(bp);
             int c = (int)position.at(0);
             int r = (int)position.at(1);
-            //std::cout << to_string(bp) << std::endl;
-            float x = 0;
-            float y = 0;
-            float z = 0;
+            pcl::PointXYZ point;
+            point.x = 0.0;
+            point.y = 0.0;
+            point.z = 0.0;
             int count = 0;
             for (int c_off = -2; c_off <= 2; c_off++) {
                 for (int r_off = -2; r_off <= 2; r_off++) {
                     float x_raw = 0;
                     float y_raw = 0;
                     float z_raw = 0;
-                    registration->getPointXYZ(&undistorted, r + r_off, c + r_off, x_raw, y_raw, z_raw);
+                    registration->getPointXYZ(&undistorted, r + r_off, c + r_off, y_raw, z_raw, x_raw);
                     if (!isnan(x_raw) && !isnan(y_raw) && !isnan(z_raw)) {
-                        x += x_raw;
-                        y += y_raw;
-                        z += z_raw;
+                        z_raw *= -1;
+                        point.x += x_raw;
+                        point.y += y_raw;
+                        point.z += z_raw;
                         count++;
                     }
                 }
             }
             if (count != 0) {
-                x /= (float)count;
-                y /= (float)count;
-                z /= (float)count;
+                point.x /= (float)count;
+                point.y /= (float)count;
+                point.z /= (float)count;
             }
-            //std::cout << "<" << std::to_string(x) << ", " << std::to_string(y) << ", " << std::to_string(z) << ">" << std::endl;
+            pose_viz.points.push_back(point);
         }
-        //std::cout << std::endl;
+        sensor_msgs::PointCloud2 pose_viz_msg;
+        pcl::toROSMsg(pose_viz, pose_viz_msg);
+        pose_viz_msg.header.frame_id = "kinect";
+        pose_viz_msg.header.stamp = ros::Time::now();
+        pub_pose_viz.publish(pose_viz_msg);
     }
 }
 
@@ -270,6 +226,7 @@ int main(int argc, char** argv) {
 
     ros::NodeHandle nh_pose;
     ros::NodeHandle nh_cloud;
+    ros::NodeHandle nh_pose_viz;
 
     image_transport::ImageTransport it_registered(nh_registered);
     image_transport::ImageTransport it_undistorted(nh_undistorted);
@@ -284,6 +241,7 @@ int main(int argc, char** argv) {
 
     ros::Subscriber sub_pose = nh_pose.subscribe("usr/keypoints", 100, messageCallback);
     ros::Publisher pub_cloud = nh_cloud.advertise<sensor_msgs::PointCloud2>("viz/points", 1);
+    pub_pose_viz = nh_pose_viz.advertise<sensor_msgs::PointCloud2>("viz/pose", 1);
 
     while (ros::ok()) {
         if (!listener.waitForNewFrame(frames, 10*10000)) {
@@ -296,7 +254,7 @@ int main(int argc, char** argv) {
         libfreenect2::Frame *depth = frames[libfreenect2::Frame::Depth];
         
         registration->apply(color, depth, &undistorted, &registered);
-        //registration->undistortDepth(depth, &undistorted);
+        registration->undistortDepth(depth, &undistorted);
 
         Mat img_color = Mat(Size(color->width, color->height), CV_8UC4);
         Mat img_ir = Mat(Size(ir->width, ir->height), CV_8UC1);
@@ -348,7 +306,7 @@ int main(int argc, char** argv) {
         for (int i = 0; i < depth->height; i++) {
             for (int j = 0; j < depth->width; j++ ) {
                 float d = ((float*)(undistorted.data))[i * depth->width + j];
-                
+
                 pcl::PointXYZRGB point;
                 float rgb;
                 registration->getPointXYZRGB(&undistorted, &registered, i, j, point.y, point.z, point.x, rgb);
