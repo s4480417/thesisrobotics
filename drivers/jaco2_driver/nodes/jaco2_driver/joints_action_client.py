@@ -28,7 +28,10 @@ class RobotJoints:
         pass
 
 class Jaco2Joints(RobotJoints):
+<<<<<<< HEAD
 
+=======
+>>>>>>> b45512c5000c07f6d799a427b45014732cc9fe7e
     def __init__(self, arm, prefix="j2n6s300_",):
         """ Initialize Jaco2 6-DOF 3-Finger Robot """
         self.arm = arm
