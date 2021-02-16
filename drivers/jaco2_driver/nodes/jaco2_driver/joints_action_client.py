@@ -1,5 +1,4 @@
 #! /usr/bin/env python
-"""A helper program to test cartesian goals for the JACO and MICO arms."""
 
 import roslib; roslib.load_manifest('jaco2_driver')
 import rospy
@@ -28,7 +27,8 @@ class RobotJoints:
     def get_angles(self):
         pass
 
-class Jaco2Joints(RobotArm):
+class Jaco2Joints(RobotJoints):
+
     def __init__(self, arm, prefix="j2n6s300_",):
         """ Initialize Jaco2 6-DOF 3-Finger Robot """
         self.arm = arm
@@ -42,11 +42,12 @@ class Jaco2Joints(RobotArm):
             joint_degree_absolute = [joint_degree[i] + self.currentJointCommand[i] for i in range(0, len(joint_degree))]
         else:
             joint_degree_absolute = joint_degree
-        result = self.__joint_angle_client(joint_degree_absolute, self.arm)
+        result = self.__joint_angle_client(joint_degree_absolute)
         return result
     
     def get_angles(self):
-        return self.__get_currentJointCommand()
+        self.__get_currentJointCommand()
+        return self.currentJointCommand
 
 
     def __get_currentJointCommand(self):
@@ -65,9 +66,9 @@ class Jaco2Joints(RobotArm):
             self.currentJointCommand[index] = float(temp_str[1])
 
 
-    def __joint_angle_client(self, angle_set, arm):
+    def __joint_angle_client(self, angle_set):
         """Send a joint angle goal to the action server."""
-        action_address = '/' + arm + '_driver/joints_action/joint_angles'
+        action_address = '/' + self.arm + '_driver/joints_action/joint_angles'
         client = actionlib.SimpleActionClient(action_address, kinova_msgs.msg.ArmJointAnglesAction)
         client.wait_for_server()
 
