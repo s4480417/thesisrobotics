@@ -28,7 +28,7 @@ class RobotJoints:
     def get_angles(self):
         pass
 
-class Jaco2Joints(RobotArm):
+class Jaco2Joints(RobotJoints):
     def __init__(self, arm, prefix="j2n6s300_",):
         """ Initialize Jaco2 6-DOF 3-Finger Robot """
         self.arm = arm
@@ -46,7 +46,8 @@ class Jaco2Joints(RobotArm):
         return result
     
     def get_angles(self):
-        return self.__get_currentJointCommand()
+        self.__get_currentJointCommand()
+        return self.currentJointCommand
 
 
     def __get_currentJointCommand(self):
