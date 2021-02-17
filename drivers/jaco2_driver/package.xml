@@ -2,7 +2,7 @@
 <package>
   <name>jaco2_driver</name>
   <version>0.0.1</version>
-  <description>The kinova_miguel package</description>
+  <description>Driver for the Jaco2 Robot Arms</description>
 
   <!-- One maintainer tag required, multiple allowed, one person per tag -->
   <!-- Example:  -->

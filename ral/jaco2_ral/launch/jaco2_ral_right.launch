@@ -1,0 +1,20 @@
+<launch>
+
+  <arg name="use_urdf" default="true"/>
+  <arg name="kinova_robotSerial" default="not_set"/>
+  <arg name="feedback_publish_rate" default="0.1"/>
+  <arg name="arm" default="not_set"/>
+
+  <node name="right_driver" pkg="jaco2_ral" type="jaco2_ral_joints" output="screen" cwd="node" args="right">
+  </node>
+
+  <group if="$(arg use_urdf)">
+    <param name="robot_description" command="$(find xacro)/xacro.py '$(find jaco2_driver)/urdf/j2n6s300.urdf.xacro'" />
+    <node name="right_state_publisher"
+           pkg="robot_state_publisher"
+          type="robot_state_publisher">
+      <remap from="joint_states" to="/right_driver/out/joint_state"/>
+    </node>
+  </group>
+
+</launch>
