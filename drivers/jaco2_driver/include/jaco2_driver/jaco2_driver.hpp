@@ -16,6 +16,13 @@ public:
     void set_joints(double theta[6]);
     void get_joints(double current_theta[6]);
     void set_cartesian(double position[6]);
+    void get_cartesian(double current_position[6]);
+    void set_fingers(double value);
+    void get_torques(double current_tau[6]);
+    void clear_trajectories();
+    bool is_stopped();
+    
+    void home_arm();
 };
 
 

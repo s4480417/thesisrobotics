@@ -9,6 +9,7 @@
 #include <openpose_ros_msgs/PointWithProb.h>
 
 #include <std_msgs/Float64.h>
+#include <geometry_msgs/Vector3.h>
 
 // Include pcl
 #include <pcl_conversions/pcl_conversions.h>
@@ -130,6 +131,9 @@ std::string to_string(BodyPart bp) {
 }
 
 ros::Publisher pub_pose_viz;
+ros::Publisher pub_trackl;
+ros::Publisher pub_trackr;
+
 
 void messageCallback(const openpose_ros_msgs::OpenPoseHumanList::ConstPtr& msg) {
     if (msg->num_humans > 0) {
@@ -142,7 +146,7 @@ void messageCallback(const openpose_ros_msgs::OpenPoseHumanList::ConstPtr& msg) 
             }
         }
         pcl::PointCloud<pcl::PointXYZ> pose_viz;
-        for (int i = 2; i < 14; i++) {
+        for (int i = 0; i < NUM_KEYPOINTS; i++) {
             BodyPart bp = static_cast<BodyPart>(i);
             tf::Vector3 position = body.getPosition(bp);
             int c = (int)position.x();
@@ -157,9 +161,8 @@ void messageCallback(const openpose_ros_msgs::OpenPoseHumanList::ConstPtr& msg) 
                     float x_raw = 0;
                     float y_raw = 0;
                     float z_raw = 0;
-                    registration->getPointXYZ(&undistorted, r + r_off, c + r_off, y_raw, z_raw, x_raw);
+                    registration->getPointXYZ(&undistorted, r + r_off, c + r_off, x_raw, y_raw, z_raw);
                     if (!isnan(x_raw) && !isnan(y_raw) && !isnan(z_raw)) {
-                        z_raw *= -1;
                         point.x += x_raw;
                         point.y += y_raw;
                         point.z += z_raw;
@@ -172,13 +175,36 @@ void messageCallback(const openpose_ros_msgs::OpenPoseHumanList::ConstPtr& msg) 
                 point.y /= (float)count;
                 point.z /= (float)count;
             }
+
+            tf::Vector3 v_raw(point.x, point.y, point.z);
+            tf::Vector3 v_new;
+            kinect_to_origin(v_raw, &v_new);
+
+            point.x = v_new.x();
+            point.y = v_new.y();
+            point.z = v_new.z();
+
             pose_viz.points.push_back(point);
         }
         sensor_msgs::PointCloud2 pose_viz_msg;
         pcl::toROSMsg(pose_viz, pose_viz_msg);
-        pose_viz_msg.header.frame_id = "kinect";
+        pose_viz_msg.header.frame_id = "root";
         pose_viz_msg.header.stamp = ros::Time::now();
         pub_pose_viz.publish(pose_viz_msg);
+
+        geometry_msgs::Vector3 trackl_msg;
+        pcl::PointXYZ trackl_pos = pose_viz.points[L_WRIST];
+        trackl_msg.x = trackl_pos.x;
+        trackl_msg.y = trackl_pos.y;
+        trackl_msg.z = trackl_pos.z;
+        pub_trackl.publish(trackl_msg);
+        
+        geometry_msgs::Vector3 trackr_msg;
+        pcl::PointXYZ trackr_pos = pose_viz.points[R_WRIST];
+        trackr_msg.x = trackr_pos.x;
+        trackr_msg.y = trackr_pos.y;
+        trackr_msg.z = trackr_pos.z;
+        pub_trackr.publish(trackr_msg);
     }
 }
 
@@ -238,6 +264,8 @@ int main(int argc, char** argv) {
     ros::NodeHandle nh_pose;
     ros::NodeHandle nh_cloud;
     ros::NodeHandle nh_pose_viz;
+    ros::NodeHandle nh_trackl;
+    ros::NodeHandle nh_trackr;
 
     image_transport::ImageTransport it_registered(nh_registered);
     image_transport::ImageTransport it_undistorted(nh_undistorted);
@@ -252,6 +280,8 @@ int main(int argc, char** argv) {
 
     ros::Subscriber sub_pose = nh_pose.subscribe("usr/keypoints", 100, messageCallback);
     ros::Publisher pub_cloud = nh_cloud.advertise<sensor_msgs::PointCloud2>("viz/points", 1);
+    pub_trackl = nh_trackl.advertise<geometry_msgs::Vector3>("usr/trackl", 1);
+    pub_trackr = nh_trackr.advertise<geometry_msgs::Vector3>("usr/trackr", 1);
     pub_pose_viz = nh_pose_viz.advertise<sensor_msgs::PointCloud2>("viz/pose", 1);
 
     while (ros::ok()) {

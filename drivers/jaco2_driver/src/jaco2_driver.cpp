@@ -49,7 +49,17 @@ void Jaco2::get_joints(double current_theta[6]) {
     current_theta[3] = current_angles.Actuator4;
     current_theta[4] = current_angles.Actuator5;
     current_theta[5] = current_angles.Actuator6;
-    current_theta[6] = 0.0;
+}
+
+void Jaco2::get_torques(double current_tau[6]) {
+    kinova::KinovaAngles current_torques;
+    comm->getJointTorques(current_torques);
+    current_tau[0] = current_torques.Actuator1;
+    current_tau[1] = current_torques.Actuator2;
+    current_tau[2] = current_torques.Actuator3;
+    current_tau[3] = current_torques.Actuator4;
+    current_tau[4] = current_torques.Actuator5;
+    current_tau[5] = current_torques.Actuator6;
 }
 
 void Jaco2::set_cartesian(double position[6]) {
@@ -60,5 +70,41 @@ void Jaco2::set_cartesian(double position[6]) {
     pose.ThetaX = position[3];
     pose.ThetaY = position[4];
     pose.ThetaZ = position[5];
-    comm->setCartesianPosition(pose, false);
+    try {
+        comm->setCartesianPosition(pose, false);
+    } catch (kinova::KinovaCommException e) {
+        std::cerr << "Failed." << std::endl;
+        clear_trajectories();
+    }
+}
+
+void Jaco2::get_cartesian(double current_position[6]) {
+    kinova::KinovaPose current_pose;
+    comm->getCartesianPosition(current_pose);
+    current_position[0] = current_pose.X;
+    current_position[1] = current_pose.Y;
+    current_position[2] = current_pose.Z;
+    current_position[3] = current_pose.ThetaX;
+    current_position[4] = current_pose.ThetaY;
+    current_position[5] = current_pose.ThetaZ;
+}
+
+bool Jaco2::is_stopped() {
+    return comm->isStopped();
+}
+
+void Jaco2::home_arm() {
+    comm->homeArm();
+}
+
+void Jaco2::clear_trajectories() {
+    comm->eraseAllTrajectories();
+}
+
+void Jaco2::set_fingers(double value) {
+    kinova::FingerAngles fingers;
+    fingers.Finger1 = value * 6800;
+    fingers.Finger2 = value * 6800;
+    fingers.Finger3 = value * 6800;
+    comm->setFingerPositions(fingers, 100, true);
 }
